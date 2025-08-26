@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ポイントシミュレーションツール V4</title>
+    <title>ポイントシミュレーションツール V5</title>
     <style>
         /* --- style.css --- */
         body {
@@ -139,11 +139,11 @@
                 </div>
                 <div class="input-group">
                     <label for="startLeftPt">左の現在ポイント:</label>
-                    <input type="number" id="startLeftPt" value="10">
+                    <input type="number" id="startLeftPt" value="2.5">
                 </div>
                 <div class="input-group">
                     <label for="startRightPt">右の現在ポイント:</label>
-                    <input type="number" id="startRightPt" value="10">
+                    <input type="number" id="startRightPt" value="7.5">
                 </div>
                 <div class="input-group">
                     <label for="directLeft">初月の直紹介（左）:</label>
@@ -168,10 +168,6 @@
                 <div class="input-group">
                     <label for="pointMultiplier">ポイント倍率:</label>
                     <input type="number" step="0.1" id="pointMultiplier" value="1.5">
-                </div>
-                <div class="input-group">
-                    <label for="mobilizationRate">会場動員率 (%):</label>
-                    <input type="number" id="mobilizationRate" value="15">
                 </div>
                 <div class="input-group">
                     <label for="commissionUnitPt">報酬計算の単位(pt):</label>
@@ -214,19 +210,16 @@
     <script>
         // --- script.js ---
         
-        // --- MROUND関数の再現 ---
         function mround(number, multiple) {
             if (multiple === 0) return number;
             return Math.round(number / multiple) * multiple;
         }
 
-        // --- FLOOR関数の再現 ---
         function floor(number, significance) {
             if (significance === 0) return 0;
             return Math.floor(number / significance) * significance;
         }
 
-        // --- メインの計算ロジック ---
         function runSimulation(initialValues, settings) {
             let results = [];
             
@@ -244,7 +237,7 @@
             for (let i = 0; i < initialValues.simulationMonths; i++) {
                 const currentDate = new Date(startDate);
                 currentDate.setMonth(startDate.getMonth() + i);
-                const monthStr = `${currentDate.getFullYear()}/${currentDate.getMonth() + 1}/20`;
+                const monthStr = `${currentDate.getFullYear()}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/20`;
 
                 // --- 左組織の計算 ---
                 const startPtLeft = (i === 0) ? mround(initialValues.startLeftPt, 0.5) : left.totalPt;
@@ -253,8 +246,8 @@
                 if (i === 0) {
                     currentIncreaseNumLeft = initialValues.directLeft;
                 } else {
-                    // ★★★ 修正点: 紹介者の計算を切り捨て(floor)から四捨五入(round)に変更 ★★★
-                    const introducersLeft = Math.round(left.prevMonthIncreaseNum * (settings.referralRate / 100));
+                    // ★★★ 修正点: 紹介者の計算を四捨五入(round)から切り捨て(floor)に変更 ★★★
+                    const introducersLeft = Math.floor(left.prevMonthIncreaseNum * (settings.referralRate / 100));
                     currentIncreaseNumLeft = introducersLeft * settings.referralsPerPerson;
                 }
                 
@@ -270,8 +263,8 @@
                 if (i === 0) {
                     currentIncreaseNumRight = initialValues.directRight;
                 } else {
-                     // ★★★ 修正点: 紹介者の計算を切り捨て(floor)から四捨五入(round)に変更 ★★★
-                    const introducersRight = Math.round(right.prevMonthIncreaseNum * (settings.referralRate / 100));
+                     // ★★★ 修正点: 紹介者の計算を四捨五入(round)から切り捨て(floor)に変更 ★★★
+                    const introducersRight = Math.floor(right.prevMonthIncreaseNum * (settings.referralRate / 100));
                     currentIncreaseNumRight = introducersRight * settings.referralsPerPerson;
                 }
 
@@ -291,7 +284,6 @@
             return results;
         }
 
-        // --- HTMLとの連携部分 ---
         document.getElementById('calculate-button').addEventListener('click', () => {
             const userInputs = {
                 name: document.getElementById('name').value,
@@ -307,7 +299,6 @@
                 referralRate: parseFloat(document.getElementById('referralRate').value),
                 referralsPerPerson: parseFloat(document.getElementById('referralsPerPerson').value),
                 pointMultiplier: parseFloat(document.getElementById('pointMultiplier').value),
-                mobilizationRate: parseFloat(document.getElementById('mobilizationRate').value),
                 commissionUnitPt: parseFloat(document.getElementById('commissionUnitPt').value),
                 commissionPerUnit: parseFloat(document.getElementById('commissionPerUnit').value)
             };
@@ -334,6 +325,11 @@
             const resultTitle = document.getElementById('result-title');
             resultTitle.innerText = userInputs.name ? `【${userInputs.name}様】のシミュレーション結果` : 'シミュレーション結果';
             resultContainer.classList.remove('hidden');
+        });
+        
+        // 初期値で一度計算を実行
+        document.addEventListener('DOMContentLoaded', () => {
+             document.getElementById('calculate-button').click();
         });
     </script>
 </body>
