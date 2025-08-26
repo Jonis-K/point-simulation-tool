@@ -3,40 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ポイントシミュレーションツール</title>
-    <link rel="stylesheet" href="style.css">
+    <title>ポイントシミュレーションツール V2</title>
+    <style>
+        /* --- style.css --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+        h1, h2 {
+            color: #1a2c4e;
+            text-align: center;
+            border-bottom: 2px solid #e0e6f0;
+            padding-bottom: 10px;
+            margin-bottom: 25px;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        .settings-card {
+            background: #fdfdff;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid #e0e6f0;
+        }
+        .settings-card h3 {
+            margin-top: 0;
+            color: #0056b3;
+            text-align: center;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        .hidden {
+            display: none;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tbody tr:hover {
+            background-color: #f9f9f9;
+        }
+        #result-title {
+            margin-bottom: 20px;
+        }
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 15px;
+            }
+        }
+    </style>
 </head>
 <body>
+
     <div class="container">
         <h1>ポイントシミュレーションツール</h1>
-        <div class="settings-card">
-            <h2>初期値を入力してください</h2>
-            <div class="input-group">
-                <label for="name">お名前:</label>
-                <input type="text" id="name" placeholder="例: 山田 太郎">
+
+        <div class="grid-container">
+            <div class="settings-card">
+                <h3>▼ 初期値</h3>
+                <div class="input-group">
+                    <label for="name">お名前:</label>
+                    <input type="text" id="name" placeholder="例: 山田 太郎">
+                </div>
+                 <div class="input-group">
+                    <label for="startMonth">シミュレーション開始年月:</label>
+                    <input type="month" id="startMonth" value="2025-09">
+                </div>
+                <div class="input-group">
+                    <label for="startLeftPt">左の現在ポイント:</label>
+                    <input type="number" id="startLeftPt" value="10">
+                </div>
+                <div class="input-group">
+                    <label for="startRightPt">右の現在ポイント:</label>
+                    <input type="number" id="startRightPt" value="10">
+                </div>
+                <div class="input-group">
+                    <label for="directLeft">初月の直紹介（左）:</label>
+                    <input type="number" id="directLeft" value="2">
+                </div>
+                <div class="input-group">
+                    <label for="directRight">初月の直紹介（右）:</label>
+                    <input type="number" id="directRight" value="2">
+                </div>
             </div>
-            <div class="input-group">
-                <label for="startLeftPt">左の現在ポイント:</label>
-                <input type="number" id="startLeftPt" value="10">
+
+            <div class="settings-card">
+                <h3>▼ シミュレーション変数</h3>
+                <div class="input-group">
+                    <label for="referralRate">紹介者を出す割合 (%):</label>
+                    <input type="number" id="referralRate" value="50">
+                </div>
+                <div class="input-group">
+                    <label for="referralsPerPerson">1人あたりの紹介人数:</label>
+                    <input type="number" id="referralsPerPerson" value="3">
+                </div>
+                <div class="input-group">
+                    <label for="pointMultiplier">ポイント倍率:</label>
+                    <input type="number" step="0.1" id="pointMultiplier" value="1.5">
+                </div>
+                <div class="input-group">
+                    <label for="mobilizationRate">会場動員率 (%):</label>
+                    <input type="number" id="mobilizationRate" value="15">
+                </div>
+                <div class="input-group">
+                    <label for="commissionUnitPt">報酬計算の単位(pt):</label>
+                    <input type="number" id="commissionUnitPt" value="5">
+                </div>
+                <div class="input-group">
+                    <label for="commissionPerUnit">単位あたりの報酬額(円):</label>
+                    <input type="number" id="commissionPerUnit" value="1500">
+                </div>
             </div>
-            <div class="input-group">
-                <label for="startRightPt">右の現在ポイント:</label>
-                <input type="number" id="startRightPt" value="10">
-            </div>
-            <div class="input-group">
-                <label for="directLeft">初月の直紹介（左）:</label>
-                <input type="number" id="directLeft" value="2">
-            </div>
-            <div class="input-group">
-                <label for="directRight">初月の直紹介（右）:</label>
-                <input type="number" id="directRight" value="2">
-            </div>
-             <div class="input-group">
-                <label for="simulationMonths">シミュレーション期間（ヶ月）:</label>
-                <input type="number" id="simulationMonths" value="60">
-            </div>
-            <button id="calculate-button">シミュレーションを実行</button>
         </div>
+        
+        <div class="input-group">
+            <label for="simulationMonths">シミュレーション期間（ヶ月）:</label>
+            <input type="number" id="simulationMonths" value="60">
+        </div>
+        <button id="calculate-button">シミュレーションを実行</button>
+
         <div id="result-container" class="hidden">
             <h2 id="result-title">シミュレーション結果</h2>
             <div class="table-wrapper">
@@ -47,17 +200,139 @@
                             <th>左:月末累計Pt</th>
                             <th>右:月末累計Pt</th>
                             <th>総合計Pt</th>
-                            <th>左:報酬</th>
-                            <th>右:報酬</th>
                             <th>合計報酬</th>
                         </tr>
                     </thead>
                     <tbody id="result-table-body">
+                        <!-- 結果がここに表示されます -->
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
-    <script src="script.js"></script>
+
+    <script>
+        // --- script.js ---
+        
+        // --- MROUND関数の再現 ---
+        function mround(number, multiple) {
+            if (multiple === 0) return number;
+            return Math.round(number / multiple) * multiple;
+        }
+
+        // --- FLOOR関数の再現 ---
+        function floor(number, significance) {
+            if (significance === 0) return 0;
+            return Math.floor(number / significance) * significance;
+        }
+
+        // --- メインの計算ロジック ---
+        function runSimulation(initialValues, settings) {
+            let results = [];
+            
+            let left = {
+                monthlyIncreaseNum: 0,
+                totalPt: initialValues.startLeftPt,
+                mobilization: 0,
+                commission: 0
+            };
+            let right = {
+                monthlyIncreaseNum: 0,
+                totalPt: initialValues.startRightPt,
+                mobilization: 0,
+                commission: 0
+            };
+            
+            const startDate = new Date(initialValues.startMonth + '-01T00:00:00');
+
+            for (let i = 0; i < initialValues.simulationMonths; i++) {
+                const currentDate = new Date(startDate);
+                currentDate.setMonth(startDate.getMonth() + i);
+                const monthStr = `${currentDate.getFullYear()}/${currentDate.getMonth() + 1}/20`;
+
+                // --- 左組織の計算 ---
+                let startPtLeft = (i === 0) ? mround(initialValues.startLeftPt, 0.5) : left.totalPt;
+                let calculationBaseLeft = (i === 0) ? 0 : left.mobilization;
+                
+                let introducersLeft = calculationBaseLeft * (settings.referralRate / 100);
+                left.monthlyIncreaseNum = (i === 0) ? initialValues.directLeft : introducersLeft * settings.referralsPerPerson;
+                
+                let monthlyIncreasePtLeft = mround(left.monthlyIncreaseNum * settings.pointMultiplier, 0.5);
+                left.totalPt = mround(startPtLeft + monthlyIncreasePtLeft, 0.5);
+                left.mobilization = left.totalPt * (settings.mobilizationRate / 100);
+                left.commission = floor(left.totalPt / settings.commissionUnitPt, 1) * settings.commissionPerUnit;
+
+                // --- 右組織の計算 ---
+                let startPtRight = (i === 0) ? mround(initialValues.startRightPt, 0.5) : right.totalPt;
+                let calculationBaseRight = (i === 0) ? 0 : right.mobilization;
+
+                let introducersRight = calculationBaseRight * (settings.referralRate / 100);
+                right.monthlyIncreaseNum = (i === 0) ? initialValues.directRight : introducersRight * settings.referralsPerPerson;
+
+                let monthlyIncreasePtRight = mround(right.monthlyIncreaseNum * settings.pointMultiplier, 0.5);
+                right.totalPt = mround(startPtRight + monthlyIncreasePtRight, 0.5);
+                right.mobilization = right.totalPt * (settings.mobilizationRate / 100);
+                right.commission = floor(right.totalPt / settings.commissionUnitPt, 1) * settings.commissionPerUnit;
+                
+                results.push({
+                    month: monthStr,
+                    leftPt: left.totalPt,
+                    rightPt: right.totalPt,
+                    totalPt: left.totalPt + right.totalPt,
+                    totalCommission: left.commission + right.commission,
+                });
+            }
+            return results;
+        }
+
+        // --- HTMLとの連携部分 ---
+        document.getElementById('calculate-button').addEventListener('click', () => {
+            // ユーザーが入力した初期値を取得
+            const userInputs = {
+                name: document.getElementById('name').value,
+                startMonth: document.getElementById('startMonth').value,
+                startLeftPt: parseFloat(document.getElementById('startLeftPt').value),
+                startRightPt: parseFloat(document.getElementById('startRightPt').value),
+                directLeft: parseInt(document.getElementById('directLeft').value),
+                directRight: parseInt(document.getElementById('directRight').value),
+                simulationMonths: parseInt(document.getElementById('simulationMonths').value)
+            };
+            
+            // ユーザーが入力したシミュレーション変数を取得
+            const userSettings = {
+                referralRate: parseFloat(document.getElementById('referralRate').value),
+                referralsPerPerson: parseFloat(document.getElementById('referralsPerPerson').value),
+                pointMultiplier: parseFloat(document.getElementById('pointMultiplier').value),
+                mobilizationRate: parseFloat(document.getElementById('mobilizationRate').value),
+                commissionUnitPt: parseFloat(document.getElementById('commissionUnitPt').value),
+                commissionPerUnit: parseFloat(document.getElementById('commissionPerUnit').value)
+            };
+
+            // シミュレーションを実行
+            const simulationResults = runSimulation(userInputs, userSettings);
+
+            // 結果を表に表示
+            const tableBody = document.getElementById('result-table-body');
+            tableBody.innerHTML = ''; 
+
+            simulationResults.forEach(res => {
+                const row = `
+                    <tr>
+                        <td>${res.month}</td>
+                        <td>${res.leftPt.toLocaleString()} pt</td>
+                        <td>${res.rightPt.toLocaleString()} pt</td>
+                        <td>${res.totalPt.toLocaleString()} pt</td>
+                        <td>&yen;${res.totalCommission.toLocaleString()}</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
+
+            const resultContainer = document.getElementById('result-container');
+            const resultTitle = document.getElementById('result-title');
+            resultTitle.innerText = userInputs.name ? `【${userInputs.name}様】のシミュレーション結果` : 'シミュレーション結果';
+            resultContainer.classList.remove('hidden');
+        });
+    </script>
 </body>
 </html>
