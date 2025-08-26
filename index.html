@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ポイントシミュレーションツール V2</title>
+    <title>ポイントシミュレーションツール V3</title>
     <style>
         /* --- style.css --- */
         body {
@@ -230,17 +230,14 @@
         function runSimulation(initialValues, settings) {
             let results = [];
             
+            // ★★★ 修正点: 左右それぞれの状態を一つのオブジェクトで管理 ★★★
             let left = {
-                monthlyIncreaseNum: 0,
                 totalPt: initialValues.startLeftPt,
-                mobilization: 0,
-                commission: 0
+                prevMonthIncreaseNum: 0 // 前月の増加人数を追跡
             };
             let right = {
-                monthlyIncreaseNum: 0,
                 totalPt: initialValues.startRightPt,
-                mobilization: 0,
-                commission: 0
+                prevMonthIncreaseNum: 0 // 前月の増加人数を追跡
             };
             
             const startDate = new Date(initialValues.startMonth + '-01T00:00:00');
@@ -251,35 +248,47 @@
                 const monthStr = `${currentDate.getFullYear()}/${currentDate.getMonth() + 1}/20`;
 
                 // --- 左組織の計算 ---
-                let startPtLeft = (i === 0) ? mround(initialValues.startLeftPt, 0.5) : left.totalPt;
-                let calculationBaseLeft = (i === 0) ? 0 : left.mobilization;
+                const startPtLeft = (i === 0) ? mround(initialValues.startLeftPt, 0.5) : left.totalPt;
                 
-                let introducersLeft = calculationBaseLeft * (settings.referralRate / 100);
-                left.monthlyIncreaseNum = (i === 0) ? initialValues.directLeft : introducersLeft * settings.referralsPerPerson;
+                let currentIncreaseNumLeft;
+                if (i === 0) {
+                    // 初月は直紹介
+                    currentIncreaseNumLeft = initialValues.directLeft;
+                } else {
+                    // 2ヶ月目以降は「前月の増加人数」を起点にする
+                    const introducersLeft = Math.floor(left.prevMonthIncreaseNum * (settings.referralRate / 100));
+                    currentIncreaseNumLeft = introducersLeft * settings.referralsPerPerson;
+                }
                 
-                let monthlyIncreasePtLeft = mround(left.monthlyIncreaseNum * settings.pointMultiplier, 0.5);
+                const monthlyIncreasePtLeft = mround(currentIncreaseNumLeft * settings.pointMultiplier, 0.5);
                 left.totalPt = mround(startPtLeft + monthlyIncreasePtLeft, 0.5);
-                left.mobilization = left.totalPt * (settings.mobilizationRate / 100);
-                left.commission = floor(left.totalPt / settings.commissionUnitPt, 1) * settings.commissionPerUnit;
+                const commissionLeft = floor(left.totalPt / settings.commissionUnitPt, 1) * settings.commissionPerUnit;
+                left.prevMonthIncreaseNum = currentIncreaseNumLeft; // ★★★ 修正点: 今月の増加人数を来月のために保存 ★★★
 
                 // --- 右組織の計算 ---
-                let startPtRight = (i === 0) ? mround(initialValues.startRightPt, 0.5) : right.totalPt;
-                let calculationBaseRight = (i === 0) ? 0 : right.mobilization;
+                const startPtRight = (i === 0) ? mround(initialValues.startRightPt, 0.5) : right.totalPt;
 
-                let introducersRight = calculationBaseRight * (settings.referralRate / 100);
-                right.monthlyIncreaseNum = (i === 0) ? initialValues.directRight : introducersRight * settings.referralsPerPerson;
+                let currentIncreaseNumRight;
+                if (i === 0) {
+                    // 初月は直紹介
+                    currentIncreaseNumRight = initialValues.directRight;
+                } else {
+                    // 2ヶ月目以降は「前月の増加人数」を起点にする
+                    const introducersRight = Math.floor(right.prevMonthIncreaseNum * (settings.referralRate / 100));
+                    currentIncreaseNumRight = introducersRight * settings.referralsPerPerson;
+                }
 
-                let monthlyIncreasePtRight = mround(right.monthlyIncreaseNum * settings.pointMultiplier, 0.5);
+                const monthlyIncreasePtRight = mround(currentIncreaseNumRight * settings.pointMultiplier, 0.5);
                 right.totalPt = mround(startPtRight + monthlyIncreasePtRight, 0.5);
-                right.mobilization = right.totalPt * (settings.mobilizationRate / 100);
-                right.commission = floor(right.totalPt / settings.commissionUnitPt, 1) * settings.commissionPerUnit;
+                const commissionRight = floor(right.totalPt / settings.commissionUnitPt, 1) * settings.commissionPerUnit;
+                right.prevMonthIncreaseNum = currentIncreaseNumRight; // ★★★ 修正点: 今月の増加人数を来月のために保存 ★★★
                 
                 results.push({
                     month: monthStr,
                     leftPt: left.totalPt,
                     rightPt: right.totalPt,
                     totalPt: left.totalPt + right.totalPt,
-                    totalCommission: left.commission + right.commission,
+                    totalCommission: commissionLeft + commissionRight,
                 });
             }
             return results;
@@ -293,9 +302,9 @@
                 startMonth: document.getElementById('startMonth').value,
                 startLeftPt: parseFloat(document.getElementById('startLeftPt').value),
                 startRightPt: parseFloat(document.getElementById('startRightPt').value),
-                directLeft: parseInt(document.getElementById('directLeft').value),
-                directRight: parseInt(document.getElementById('directRight').value),
-                simulationMonths: parseInt(document.getElementById('simulationMonths').value)
+                directLeft: parseInt(document.getElementById('directLeft').value, 10),
+                directRight: parseInt(document.getElementById('directRight').value, 10),
+                simulationMonths: parseInt(document.getElementById('simulationMonths').value, 10)
             };
             
             // ユーザーが入力したシミュレーション変数を取得
@@ -303,7 +312,7 @@
                 referralRate: parseFloat(document.getElementById('referralRate').value),
                 referralsPerPerson: parseFloat(document.getElementById('referralsPerPerson').value),
                 pointMultiplier: parseFloat(document.getElementById('pointMultiplier').value),
-                mobilizationRate: parseFloat(document.getElementById('mobilizationRate').value),
+                mobilizationRate: parseFloat(document.getElementById('mobilizationRate').value), // この変数は現在のロジックでは使われません
                 commissionUnitPt: parseFloat(document.getElementById('commissionUnitPt').value),
                 commissionPerUnit: parseFloat(document.getElementById('commissionPerUnit').value)
             };
