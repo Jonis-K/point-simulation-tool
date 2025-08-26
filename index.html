@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ポイントシミュレーションツール V3</title>
+    <title>ポイントシミュレーションツール V4</title>
     <style>
         /* --- style.css --- */
         body {
@@ -230,14 +230,13 @@
         function runSimulation(initialValues, settings) {
             let results = [];
             
-            // ★★★ 修正点: 左右それぞれの状態を一つのオブジェクトで管理 ★★★
             let left = {
                 totalPt: initialValues.startLeftPt,
-                prevMonthIncreaseNum: 0 // 前月の増加人数を追跡
+                prevMonthIncreaseNum: 0 
             };
             let right = {
                 totalPt: initialValues.startRightPt,
-                prevMonthIncreaseNum: 0 // 前月の増加人数を追跡
+                prevMonthIncreaseNum: 0 
             };
             
             const startDate = new Date(initialValues.startMonth + '-01T00:00:00');
@@ -252,36 +251,34 @@
                 
                 let currentIncreaseNumLeft;
                 if (i === 0) {
-                    // 初月は直紹介
                     currentIncreaseNumLeft = initialValues.directLeft;
                 } else {
-                    // 2ヶ月目以降は「前月の増加人数」を起点にする
-                    const introducersLeft = Math.floor(left.prevMonthIncreaseNum * (settings.referralRate / 100));
+                    // ★★★ 修正点: 紹介者の計算を切り捨て(floor)から四捨五入(round)に変更 ★★★
+                    const introducersLeft = Math.round(left.prevMonthIncreaseNum * (settings.referralRate / 100));
                     currentIncreaseNumLeft = introducersLeft * settings.referralsPerPerson;
                 }
                 
                 const monthlyIncreasePtLeft = mround(currentIncreaseNumLeft * settings.pointMultiplier, 0.5);
                 left.totalPt = mround(startPtLeft + monthlyIncreasePtLeft, 0.5);
                 const commissionLeft = floor(left.totalPt / settings.commissionUnitPt, 1) * settings.commissionPerUnit;
-                left.prevMonthIncreaseNum = currentIncreaseNumLeft; // ★★★ 修正点: 今月の増加人数を来月のために保存 ★★★
+                left.prevMonthIncreaseNum = currentIncreaseNumLeft; 
 
                 // --- 右組織の計算 ---
                 const startPtRight = (i === 0) ? mround(initialValues.startRightPt, 0.5) : right.totalPt;
 
                 let currentIncreaseNumRight;
                 if (i === 0) {
-                    // 初月は直紹介
                     currentIncreaseNumRight = initialValues.directRight;
                 } else {
-                    // 2ヶ月目以降は「前月の増加人数」を起点にする
-                    const introducersRight = Math.floor(right.prevMonthIncreaseNum * (settings.referralRate / 100));
+                     // ★★★ 修正点: 紹介者の計算を切り捨て(floor)から四捨五入(round)に変更 ★★★
+                    const introducersRight = Math.round(right.prevMonthIncreaseNum * (settings.referralRate / 100));
                     currentIncreaseNumRight = introducersRight * settings.referralsPerPerson;
                 }
 
                 const monthlyIncreasePtRight = mround(currentIncreaseNumRight * settings.pointMultiplier, 0.5);
                 right.totalPt = mround(startPtRight + monthlyIncreasePtRight, 0.5);
                 const commissionRight = floor(right.totalPt / settings.commissionUnitPt, 1) * settings.commissionPerUnit;
-                right.prevMonthIncreaseNum = currentIncreaseNumRight; // ★★★ 修正点: 今月の増加人数を来月のために保存 ★★★
+                right.prevMonthIncreaseNum = currentIncreaseNumRight; 
                 
                 results.push({
                     month: monthStr,
@@ -296,7 +293,6 @@
 
         // --- HTMLとの連携部分 ---
         document.getElementById('calculate-button').addEventListener('click', () => {
-            // ユーザーが入力した初期値を取得
             const userInputs = {
                 name: document.getElementById('name').value,
                 startMonth: document.getElementById('startMonth').value,
@@ -307,20 +303,17 @@
                 simulationMonths: parseInt(document.getElementById('simulationMonths').value, 10)
             };
             
-            // ユーザーが入力したシミュレーション変数を取得
             const userSettings = {
                 referralRate: parseFloat(document.getElementById('referralRate').value),
                 referralsPerPerson: parseFloat(document.getElementById('referralsPerPerson').value),
                 pointMultiplier: parseFloat(document.getElementById('pointMultiplier').value),
-                mobilizationRate: parseFloat(document.getElementById('mobilizationRate').value), // この変数は現在のロジックでは使われません
+                mobilizationRate: parseFloat(document.getElementById('mobilizationRate').value),
                 commissionUnitPt: parseFloat(document.getElementById('commissionUnitPt').value),
                 commissionPerUnit: parseFloat(document.getElementById('commissionPerUnit').value)
             };
 
-            // シミュレーションを実行
             const simulationResults = runSimulation(userInputs, userSettings);
 
-            // 結果を表に表示
             const tableBody = document.getElementById('result-table-body');
             tableBody.innerHTML = ''; 
 
