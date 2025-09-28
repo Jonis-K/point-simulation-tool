@@ -224,7 +224,7 @@
 
     <script>
         /**
-         * JavaScript: アプリケーションのロジック（分析結果反映版）
+         * JavaScript: アプリケーションのロジック（最終決定版）
          */
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('simulation-form');
@@ -302,7 +302,9 @@
             let currentIncreaseNum = 0;
 
             for (let i = 0; i < initial.simulationMonths; i++) {
+                // 月初ポイント = 初月は初期値、以降は前月末の値
                 const startOfMonthPt = (i === 0) ? mround(startPt, 0.5) : endOfMonthPt;
+                // 前月増加人数 = 初月は0、以降は前の月の増加人数
                 const prevMonthIncreaseNum = (i === 0) ? 0 : currentIncreaseNum;
                 
                 // 成長エンジンのロジック
@@ -339,11 +341,11 @@
                 currentDate.setMonth(startDate.getMonth() + i);
                 const monthStr = `${currentDate.getFullYear()}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/20`;
                 
-                // KPI：会場動員数を計算
+                // KPI：会場動員数を計算 (月末累計ポイントを元に)
                 const mobilizationLeft = Math.floor(leftMonth.endOfMonthPt * (inputs.settings.mobilizationRate / 100));
                 const mobilizationRight = Math.floor(rightMonth.endOfMonthPt * (inputs.settings.mobilizationRate / 100));
 
-                // 報酬体系：コミッションを計算 (CSVのロジックに基づき、月初ポイントで計算)
+                // 報酬体系：コミッションを計算 (月初ポイントを元に)
                 const commissionLeft = calculateCommission(leftMonth.startOfMonthPt);
                 const commissionRight = calculateCommission(rightMonth.startOfMonthPt);
                 const totalCommission = commissionLeft + commissionRight;
@@ -397,10 +399,13 @@
             return Math.round(number / multiple) * multiple;
         }
         
-        // 報酬体系のヘルパー関数 (CSVのロジックに基づき、5ptごとに1500円)
+        // 報酬体系のヘルパー関数 (CSVファイル2のロジックを反映)
         function calculateCommission(points) {
+            // スプレッドシート「ツール2」の報酬体系は、単純な5ptごと1500円でした。
+            // 以前の50ptを1周とする複雑なルールは、今回のCSVファイルとは異なります。
             const commissionUnitPt = 5;
             const commissionPerUnit = 1500;
+            // 5ptに満たない端数は切り捨て
             return Math.floor(points / commissionUnitPt) * commissionPerUnit;
         }
     </script>
