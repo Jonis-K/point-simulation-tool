@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>事業計画シミュレーションツール</title>
+    <!-- CSSファイルを読み込み -->
     <link rel="stylesheet" href="style.css">
+    <!-- JavaScriptファイルを遅延読み込み -->
     <script src="script.js" defer></script>
 </head>
 <body>
@@ -14,15 +16,12 @@
             <h1>事業計画シミュレーションツール</h1>
         </header>
 
+        <!-- 設計思想: 入力（設定）セクション -->
         <section id="settings">
             <form id="simulation-form">
                 <div class="grid-container">
                     <fieldset class="settings-card">
                         <legend>▼ 初期値</legend>
-                        <div class="input-group">
-                            <label for="name">お名前:</label>
-                            <input type="text" id="name" placeholder="例: 山田 太郎">
-                        </div>
                         <div class="input-group">
                             <label for="startMonth">シミュレーション開始年月:</label>
                             <input type="month" id="startMonth" value="2025-09" required>
@@ -74,6 +73,7 @@
             </form>
         </section>
 
+        <!-- 設計思想: 出力（結果）セクション -->
         <section id="results" class="hidden">
             <h2 id="result-title">シミュレーション結果</h2>
             <div class="table-wrapper">
@@ -91,7 +91,7 @@
                         </tr>
                     </thead>
                     <tbody id="result-table-body">
-                        <!-- 結果がここに表示されます -->
+                        <!-- JavaScriptによって結果がここに表示されます -->
                     </tbody>
                 </table>
             </div>
@@ -100,4 +100,5 @@
 
 </body>
 </html>
+
 
