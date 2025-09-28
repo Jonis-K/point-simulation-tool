@@ -143,7 +143,7 @@
             <form id="simulation-form">
                 <div class="grid-container">
                     <fieldset class="settings-card">
-                        <legend>▼ 初期値</legend>
+                        <legend>▼ 初期値（起爆剤）</legend>
                         <div class="input-group">
                              <label for="name">お名前:</label>
                              <input type="text" id="name" placeholder="（任意）">
@@ -224,7 +224,7 @@
 
     <script>
         /**
-         * JavaScript: アプリケーションのロジック（決定版）
+         * JavaScript: アプリケーションのロジック（分析結果反映版）
          */
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('simulation-form');
@@ -241,26 +241,28 @@
         function runApplication() {
             try {
                 const inputs = getInputsFromUI();
-                if (!inputs) return; // 入力値が無効な場合は処理を中断
+                if (!inputs) return; 
 
                 const leftSimulationData = runDetailedSimulation(inputs.initial, inputs.settings, 'left');
                 const rightSimulationData = runDetailedSimulation(inputs.initial, inputs.settings, 'right');
                 const finalResults = generateFinalResults(leftSimulationData, rightSimulationData, inputs);
                 updateResultsTable(finalResults, inputs.initial.name);
             } catch (error) {
-                console.error("シミュレーション中に予期せぬエラーが発生しました:", error);
-                alert("計算中にエラーが発生しました。開発者ツールで詳細を確認してください。");
+                console.error("シミュレーション中に予期せぬエラー:", error);
+                alert("計算中にエラーが発生しました。入力値が正しいかご確認ください。");
             }
         }
-
+        
         /**
-         * UIから全入力値を取得し、不正な値がないか検証する
+         * UIから全入力値を取得し、不正な値がないか検証
          */
         function getNumericValue(id, isFloat = false) {
-            const value = document.getElementById(id).value;
-            if (value === '') return 0; // 空欄は0として扱う
+            const el = document.getElementById(id);
+            if (!el) return 0;
+            const value = el.value;
+            if (value === '') return 0;
             const number = isFloat ? parseFloat(value) : parseInt(value, 10);
-            return isNaN(number) ? 0 : number; // 数値でない場合は0として扱う
+            return isNaN(number) ? 0 : number;
         }
         
         function getInputsFromUI() {
@@ -281,7 +283,6 @@
                     mobilizationRate: getNumericValue('mobilizationRate'),
                 }
             };
-            // 開始年月が設定されているか確認
             if (!inputs.initial.startMonth) {
                 alert("シミュレーション開始年月を正しく入力してください。");
                 return null;
@@ -303,24 +304,28 @@
             for (let i = 0; i < initial.simulationMonths; i++) {
                 const startOfMonthPt = (i === 0) ? mround(startPt, 0.5) : endOfMonthPt;
                 const prevMonthIncreaseNum = (i === 0) ? 0 : currentIncreaseNum;
-
+                
+                // 成長エンジンのロジック
                 if (i === 0) {
+                    // 起爆剤：初月は直紹介から
                     currentIncreaseNum = directReferrals;
                 } else {
+                    // 2ヶ月目以降：前の月の増加人数が起点
                     const introducers = Math.floor(prevMonthIncreaseNum * (settings.referralRate / 100));
                     currentIncreaseNum = introducers * settings.referralsPerPerson;
                 }
 
+                // 効率化係数：ポイント倍率を適用
                 const increasePt = mround(currentIncreaseNum * settings.pointMultiplier, 0.5);
                 endOfMonthPt = mround(startOfMonthPt + increasePt, 0.5);
                 
-                detailedResults.push({ endOfMonthPt, currentIncreaseNum });
+                detailedResults.push({ startOfMonthPt, endOfMonthPt });
             }
             return detailedResults;
         }
 
         /**
-         * 左右の詳細シミュレーション結果を統合し、最終的な表示用データを作成
+         * 左右の結果を統合し、最終的な表示用データを作成
          */
         function generateFinalResults(leftData, rightData, inputs) {
             const finalResults = [];
@@ -334,12 +339,13 @@
                 currentDate.setMonth(startDate.getMonth() + i);
                 const monthStr = `${currentDate.getFullYear()}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/20`;
                 
+                // KPI：会場動員数を計算
                 const mobilizationLeft = Math.floor(leftMonth.endOfMonthPt * (inputs.settings.mobilizationRate / 100));
                 const mobilizationRight = Math.floor(rightMonth.endOfMonthPt * (inputs.settings.mobilizationRate / 100));
 
-                // CSVファイルの「ラウンドコミッション」は左右合計の値なので、ここで合計する
-                const commissionLeft = calculateCommission(leftMonth.endOfMonthPt);
-                const commissionRight = calculateCommission(rightMonth.endOfMonthPt);
+                // 報酬体系：コミッションを計算 (CSVのロジックに基づき、月初ポイントで計算)
+                const commissionLeft = calculateCommission(leftMonth.startOfMonthPt);
+                const commissionRight = calculateCommission(rightMonth.startOfMonthPt);
                 const totalCommission = commissionLeft + commissionRight;
 
                 finalResults.push({
@@ -390,27 +396,14 @@
             if (multiple === 0) return number;
             return Math.round(number / multiple) * multiple;
         }
-
+        
+        // 報酬体系のヘルパー関数 (CSVのロジックに基づき、5ptごとに1500円)
         function calculateCommission(points) {
-            const cyclePoint = 50;
-            const cycleCommission = 10000;
-
-            const fullCycles = Math.floor(points / cyclePoint);
-            const commissionFromCycles = fullCycles * cycleCommission;
-
-            const remainingPoints = points % cyclePoint;
-            
-            let commissionFromRemainder = 0;
-            if (remainingPoints >= 40) commissionFromRemainder = 7500;
-            else if (remainingPoints >= 30) commissionFromRemainder = 6000;
-            else if (remainingPoints >= 20) commissionFromRemainder = 4500;
-            else if (remainingPoints >= 10) commissionFromRemainder = 3000;
-            else if (remainingPoints >= 5) commissionFromRemainder = 1500;
-
-            return commissionFromCycles + commissionFromRemainder;
+            const commissionUnitPt = 5;
+            const commissionPerUnit = 1500;
+            return Math.floor(points / commissionUnitPt) * commissionPerUnit;
         }
     </script>
 </body>
 </html>
-
 
