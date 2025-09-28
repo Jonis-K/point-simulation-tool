@@ -20,18 +20,15 @@ document.addEventListener('DOMContentLoaded', () => {
  * アプリケーションのメインコントローラー
  */
 function runApplication() {
-    // 1. 入力値を取得
     const uiInputs = getInputsFromUI();
     
-    // 2. 左右それぞれの詳細シミュレーションを実行（ユーザーには見えない）
     const leftSimulationData = runDetailedSimulation(uiInputs.initial, uiInputs.settings, 'left');
     const rightSimulationData = runDetailedSimulation(uiInputs.initial, uiInputs.settings, 'right');
 
-    // 3. 最終結果を生成
-    const finalResults = generateFinalResults(leftSimulationData, rightSimulationData, uiInputs.initial);
+    // ★修正点: generateFinalResults に settings も渡すように変更
+    const finalResults = generateFinalResults(leftSimulationData, rightSimulationData, uiInputs.initial, uiInputs.settings);
 
-    // 4. UI（結果テーブル）を更新
-    updateResultsTable(finalResults, uiInputs.initial.name);
+    updateResultsTable(finalResults);
 }
 
 /**
@@ -46,7 +43,6 @@ function getInputsFromUI() {
             directLeft: parseInt(document.getElementById('directLeft').value, 10),
             directRight: parseInt(document.getElementById('directRight').value, 10),
             simulationMonths: parseInt(document.getElementById('simulationMonths').value, 10),
-            name: document.getElementById('name').value,
         },
         settings: {
             referralRate: parseFloat(document.getElementById('referralRate').value),
@@ -59,10 +55,6 @@ function getInputsFromUI() {
 
 /**
  * 左右どちらかの詳細シミュレーションを実行するエンジン
- * @param {object} initial - 初期値
- * @param {object} settings - シミュレーション変数
- * @param {string} side - 'left' または 'right'
- * @returns {Array<object>} 月ごとの詳細な計算結果
  */
 function runDetailedSimulation(initial, settings, side) {
     let detailedResults = [];
@@ -70,33 +62,24 @@ function runDetailedSimulation(initial, settings, side) {
     let directReferrals = (side === 'left') ? initial.directLeft : initial.directRight;
 
     let monthlyState = {
-        startOfMonthPt: 0,
-        prevMonthIncreaseNum: 0,
-        introducers: 0,
-        currentIncreaseNum: 0,
-        increasePt: 0,
         endOfMonthPt: 0,
+        currentIncreaseNum: 0,
     };
 
     for (let i = 0; i < initial.simulationMonths; i++) {
         const newState = {};
-
-        // 月初ポイント
-        newState.startOfMonthPt = (i === 0) ? mround(startPt, 0.5) : monthlyState.endOfMonthPt;
-        
-        // 前月増加人数
-        newState.prevMonthIncreaseNum = (i === 0) ? 0 : monthlyState.currentIncreaseNum;
+        const startOfMonthPt = (i === 0) ? mround(startPt, 0.5) : monthlyState.endOfMonthPt;
+        const prevMonthIncreaseNum = (i === 0) ? 0 : monthlyState.currentIncreaseNum;
 
         if (i === 0) {
-            newState.introducers = 0;
             newState.currentIncreaseNum = directReferrals;
         } else {
-            newState.introducers = Math.floor(newState.prevMonthIncreaseNum * (settings.referralRate / 100));
-            newState.currentIncreaseNum = newState.introducers * settings.referralsPerPerson;
+            const introducers = Math.floor(prevMonthIncreaseNum * (settings.referralRate / 100));
+            newState.currentIncreaseNum = introducers * settings.referralsPerPerson;
         }
 
-        newState.increasePt = mround(newState.currentIncreaseNum * settings.pointMultiplier, 0.5);
-        newState.endOfMonthPt = mround(newState.startOfMonthPt + newState.increasePt, 0.5);
+        const increasePt = mround(newState.currentIncreaseNum * settings.pointMultiplier, 0.5);
+        newState.endOfMonthPt = mround(startOfMonthPt + increasePt, 0.5);
         
         detailedResults.push(newState);
         monthlyState = newState;
@@ -104,11 +87,11 @@ function runDetailedSimulation(initial, settings, side) {
     return detailedResults;
 }
 
-
 /**
  * 左右の詳細シミュレーション結果を統合し、最終的な表示用データを作成
+ * ★修正点: settings パラメータを追加
  */
-function generateFinalResults(leftData, rightData, initial) {
+function generateFinalResults(leftData, rightData, initial, settings) {
     const finalResults = [];
     const startDate = new Date(initial.startMonth + '-01T00:00:00');
 
@@ -120,8 +103,9 @@ function generateFinalResults(leftData, rightData, initial) {
         currentDate.setMonth(startDate.getMonth() + i);
         const monthStr = `${currentDate.getFullYear()}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/20`;
         
-        const mobilizationLeft = Math.floor(leftMonth.endOfMonthPt * (initial.mobilizationRate / 100));
-        const mobilizationRight = Math.floor(rightMonth.endOfMonthPt * (initial.mobilizationRate / 100));
+        // ★修正点: settings.mobilizationRate を使用
+        const mobilizationLeft = Math.floor(leftMonth.endOfMonthPt * (settings.mobilizationRate / 100));
+        const mobilizationRight = Math.floor(rightMonth.endOfMonthPt * (settings.mobilizationRate / 100));
 
         const commissionLeft = calculateCommission(leftMonth.endOfMonthPt);
         const commissionRight = calculateCommission(rightMonth.endOfMonthPt);
@@ -143,12 +127,13 @@ function generateFinalResults(leftData, rightData, initial) {
 /**
  * 最終結果をHTMLテーブルに描画
  */
-function updateResultsTable(results, name) {
+function updateResultsTable(results) {
     const tableBody = document.getElementById('result-table-body');
     const resultContainer = document.getElementById('results');
     const resultTitle = document.getElementById('result-title');
+    const nameInput = document.getElementById('name').value;
 
-    tableBody.innerHTML = ''; // テーブルをクリア
+    tableBody.innerHTML = ''; 
 
     results.forEach(res => {
         tableBody.innerHTML += `
@@ -165,10 +150,9 @@ function updateResultsTable(results, name) {
         `;
     });
 
-    resultTitle.innerText = name ? `【${name}様】のシミュレーション結果` : 'シミュレーション結果';
+    resultTitle.innerText = nameInput ? `【${nameInput}様】のシミュレーション結果` : 'シミュレーション結果';
     resultContainer.classList.remove('hidden');
 }
-
 
 // --- ヘルパー関数 ---
 
