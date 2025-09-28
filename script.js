@@ -1,224 +1,153 @@
-/**
- * 詳細設計: アプリケーションのロジック
- * 役割の異なる関数に分割し、可読性とメンテナンス性を向上させる
- */
-
-// DOMContentLoadedイベントリスナー: HTMLの読み込み完了後にスクリプトを実行
-document.addEventListener('DOMContentLoaded', () => {
-    
-    // --- DOM要素の取得 ---
-    const form = document.getElementById('simulation-form');
-    const resultContainer = document.getElementById('results');
-    const resultTitle = document.getElementById('result-title');
-    const tableBody = document.getElementById('result-table-body');
-
-    // --- イベントリスナーの設定 ---
-    form.addEventListener('submit', (event) => {
-        event.preventDefault(); // フォームのデフォルト送信をキャンセル
-        run();
-    });
-
-    // 初期表示時に一度シミュレーションを実行
-    run();
-
-    /**
-     * メイン実行関数
-     * 入力値を取得し、シミュレーションを実行し、UIを更新する
-     */
-    function run() {
-        const initialValues = getInitialValues();
-        const settings = getSimulationSettings();
-        
-        const simulationResults = runSimulation(initialValues, settings);
-        
-        updateUI(simulationResults, initialValues.name);
-    }
-
-    /**
-     * UIから初期値を取得する関数
-     * @returns {object} 初期値のオブジェクト
-     */
-    function getInitialValues() {
-        return {
-            name: document.getElementById('name').value,
-            startMonth: document.getElementById('startMonth').value,
-            startLeftPt: parseFloat(document.getElementById('startLeftPt').value),
-            startRightPt: parseFloat(document.getElementById('startRightPt').value),
-            directLeft: parseInt(document.getElementById('directLeft').value, 10),
-            directRight: parseInt(document.getElementById('directRight').value, 10),
-            simulationMonths: parseInt(document.getElementById('simulationMonths').value, 10)
-        };
-    }
-
-    /**
-     * UIからシミュレーション変数を取得する関数
-     * @returns {object} シミュレーション変数のオブジェクト
-     */
-    function getSimulationSettings() {
-        return {
-            referralRate: parseFloat(document.getElementById('referralRate').value),
-            referralsPerPerson: parseFloat(document.getElementById('referralsPerPerson').value),
-            pointMultiplier: parseFloat(document.getElementById('pointMultiplier').value),
-            mobilizationRate: parseFloat(document.getElementById('mobilizationRate').value)
-        };
-    }
-
-    /**
-     * シミュレーション結果を元にUI（テーブル）を更新する関数
-     * @param {Array<object>} results - シミュレーション結果の配列
-     * @param {string} name - 利用者の名前
-     */
-    function updateUI(results, name) {
-        tableBody.innerHTML = ''; // 既存のテーブル内容をクリア
-
-        results.forEach(res => {
-            const row = `
-                <tr>
-                    <td>${res.month}</td>
-                    <td>${res.leftPt.toLocaleString()} pt</td>
-                    <td>${res.rightPt.toLocaleString()} pt</td>
-                    <td>${res.totalPt.toLocaleString()} pt</td>
-                    <td>${res.mobilizationLeft.toLocaleString()} 人</td>
-                    <td>${res.mobilizationRight.toLocaleString()} 人</td>
-                    <td>${res.totalMobilization.toLocaleString()} 人</td>
-                    <td>&yen;${res.totalCommission.toLocaleString()}</td>
-                </tr>
-            `;
-            tableBody.innerHTML += row;
-        });
-
-        resultTitle.innerText = name ? `【${name}様】のシミュレーション結果` : 'シミュレーション結果';
-        resultContainer.classList.remove('hidden');
-    }
-});
-
-
-// --- 計算ロジック（詳細設計）---
-
-/**
- * 0.5単位で四捨五入するヘルパー関数
- * @param {number} number - 対象の数値
- * @param {number} multiple - 丸める単位
- * @returns {number} 丸められた数値
- */
-function mround(number, multiple) {
-    if (multiple === 0) return number;
-    return Math.round(number / multiple) * multiple;
+/* 基本設計: 全体のスタイルとレイアウト定義 */
+:root {
+    --primary-color: #007bff;
+    --primary-hover-color: #0056b3;
+    --background-color: #f0f4f8;
+    --card-background-color: #ffffff;
+    --text-color: #333;
+    --heading-color: #1a2c4e;
+    --border-color: #e0e6f0;
+    --shadow-color: rgba(0, 0, 0, 0.08);
 }
 
-/**
- * 新しい報酬ルールに基づいてコミッションを計算する関数
- * @param {number} points - 対象となる累計ポイント
- * @returns {number} 計算された報酬額
- */
-function calculateCommission(points) {
-    const cyclePoint = 50;
-    const cycleCommission = 10000; // (1500 * 5) + 2500
-
-    const fullCycles = Math.floor(points / cyclePoint);
-    const commissionFromCycles = fullCycles * cycleCommission;
-
-    const remainingPoints = points % cyclePoint;
-    
-    let commissionFromRemainder = 0;
-    if (remainingPoints >= 40) commissionFromRemainder = 7500; // 1500 * 5
-    else if (remainingPoints >= 30) commissionFromRemainder = 6000; // 1500 * 4
-    else if (remainingPoints >= 20) commissionFromRemainder = 4500; // 1500 * 3
-    else if (remainingPoints >= 10) commissionFromRemainder = 3000; // 1500 * 2
-    else if (remainingPoints >= 5) commissionFromRemainder = 1500; // 1500 * 1
-
-    return commissionFromCycles + commissionFromRemainder;
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
 }
 
-/**
- * シミュレーションの主計算エンジン
- * @param {object} initialValues - 初期値
- * @param {object} settings - シミュレーション変数
- * @returns {Array<object>} 月ごとの計算結果の配列
- */
-function runSimulation(initialValues, settings) {
-    let results = [];
-    
-    // 左右の組織の状態をオブジェクトで管理
-    let left = {
-        totalPt: initialValues.startLeftPt,
-        prevMonthIncreaseNum: 0 
-    };
-    let right = {
-        totalPt: initialValues.startRightPt,
-        prevMonthIncreaseNum: 0 
-    };
-    
-    const startDate = new Date(initialValues.startMonth + '-01T00:00:00');
-
-    for (let i = 0; i < initialValues.simulationMonths; i++) {
-        const currentDate = new Date(startDate);
-        currentDate.setMonth(startDate.getMonth() + i);
-        const monthStr = `${currentDate.getFullYear()}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/20`;
-
-        // --- 月次の計算サイクル ---
-        [left, right] = calculateMonth(left, right, i, initialValues, settings);
-        
-        // --- 付随情報の計算 ---
-        const commissionLeft = calculateCommission(left.totalPt);
-        const commissionRight = calculateCommission(right.totalPt);
-        const mobilizationLeft = Math.floor(left.totalPt * (settings.mobilizationRate / 100));
-        const mobilizationRight = Math.floor(right.totalPt * (settings.mobilizationRate / 100));
-
-        // --- 結果の格納 ---
-        results.push({
-            month: monthStr,
-            leftPt: left.totalPt,
-            rightPt: right.totalPt,
-            totalPt: left.totalPt + right.totalPt,
-            mobilizationLeft: mobilizationLeft,
-            mobilizationRight: mobilizationRight,
-            totalMobilization: mobilizationLeft + mobilizationRight,
-            totalCommission: commissionLeft + commissionRight,
-        });
-    }
-    return results;
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: var(--card-background-color);
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px var(--shadow-color);
 }
 
-/**
- * 1ヶ月分のポイント増加を計算する関数
- * @param {object} leftState - 現在の左組織の状態
- * @param {object} rightState - 現在の右組織の状態
- * @param {number} monthIndex - 現在が何ヶ月目か (0から始まる)
- * @param {object} initialValues - 初期値
- * @param {object} settings - シミュレーション変数
- * @returns {Array<object>} 更新された左右の組織の状態
- */
-function calculateMonth(leftState, rightState, monthIndex, initialValues, settings) {
-    const newLeft = { ...leftState };
-    const newRight = { ...rightState };
-
-    // --- 左組織 ---
-    const startPtLeft = (monthIndex === 0) ? mround(initialValues.startLeftPt, 0.5) : newLeft.totalPt;
-    let currentIncreaseNumLeft;
-    if (monthIndex === 0) {
-        currentIncreaseNumLeft = initialValues.directLeft;
-    } else {
-        const introducersLeft = Math.floor(newLeft.prevMonthIncreaseNum * (settings.referralRate / 100));
-        currentIncreaseNumLeft = introducersLeft * settings.referralsPerPerson;
-    }
-    const monthlyIncreasePtLeft = mround(currentIncreaseNumLeft * settings.pointMultiplier, 0.5);
-    newLeft.totalPt = mround(startPtLeft + monthlyIncreasePtLeft, 0.5);
-    newLeft.prevMonthIncreaseNum = currentIncreaseNumLeft;
-
-    // --- 右組織 ---
-    const startPtRight = (monthIndex === 0) ? mround(initialValues.startRightPt, 0.5) : newRight.totalPt;
-    let currentIncreaseNumRight;
-    if (monthIndex === 0) {
-        currentIncreaseNumRight = initialValues.directRight;
-    } else {
-        const introducersRight = Math.floor(newRight.prevMonthIncreaseNum * (settings.referralRate / 100));
-        currentIncreaseNumRight = introducersRight * settings.referralsPerPerson;
-    }
-    const monthlyIncreasePtRight = mround(currentIncreaseNumRight * settings.pointMultiplier, 0.5);
-    newRight.totalPt = mround(startPtRight + monthlyIncreasePtRight, 0.5);
-    newRight.prevMonthIncreaseNum = currentIncreaseNumRight;
-
-    return [newLeft, newRight];
+header h1, section h2 {
+    color: var(--heading-color);
+    text-align: center;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+    margin-bottom: 25px;
 }
+
+/* 詳細設計: 各コンポーネントのスタイル */
+.grid-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+    margin-bottom: 30px;
+}
+
+.settings-card {
+    background: #fdfdff;
+    padding: 25px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.settings-card legend {
+    font-weight: bold;
+    color: var(--primary-hover-color);
+    padding: 0 10px;
+}
+
+.input-group {
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #555;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+button {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.1s;
+}
+
+button:hover {
+    background-color: var(--primary-hover-color);
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+.hidden {
+    display: none;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    padding: 12px;
+    text-align: right;
+    border-bottom: 1px solid #ddd;
+    white-space: nowrap;
+}
+
+th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+}
+
+tbody tr:hover {
+    background-color: #f9f9f9;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .grid-container {
+        grid-template-columns: 1fr;
+    }
+    body {
+        padding: 10px;
+    }
+    .container {
+        padding: 15px;
+    }
+}
+
 
