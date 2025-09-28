@@ -1,153 +1,199 @@
-/* 基本設計: 全体のスタイルとレイアウト定義 */
-:root {
-    --primary-color: #007bff;
-    --primary-hover-color: #0056b3;
-    --background-color: #f0f4f8;
-    --card-background-color: #ffffff;
-    --text-color: #333;
-    --heading-color: #1a2c4e;
-    --border-color: #e0e6f0;
-    --shadow-color: rgba(0, 0, 0, 0.08);
+/**
+ * 詳細設計: アプリケーションのロジック
+ * スプレッドシートの計算ロジックを忠実に再現
+ */
+
+document.addEventListener('DOMContentLoaded', () => {
+    
+    const form = document.getElementById('simulation-form');
+    
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        runApplication();
+    });
+
+    // 初期表示時に一度シミュレーションを実行
+    runApplication();
+});
+
+/**
+ * アプリケーションのメインコントローラー
+ */
+function runApplication() {
+    // 1. 入力値を取得
+    const uiInputs = getInputsFromUI();
+    
+    // 2. 左右それぞれの詳細シミュレーションを実行（ユーザーには見えない）
+    const leftSimulationData = runDetailedSimulation(uiInputs.initial, uiInputs.settings, 'left');
+    const rightSimulationData = runDetailedSimulation(uiInputs.initial, uiInputs.settings, 'right');
+
+    // 3. 最終結果を生成
+    const finalResults = generateFinalResults(leftSimulationData, rightSimulationData, uiInputs.initial);
+
+    // 4. UI（結果テーブル）を更新
+    updateResultsTable(finalResults, uiInputs.initial.name);
 }
 
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background-color: var(--background-color);
-    color: var(--text-color);
-    line-height: 1.6;
-    margin: 0;
-    padding: 20px;
+/**
+ * UIから全入力値を取得
+ */
+function getInputsFromUI() {
+    return {
+        initial: {
+            startMonth: document.getElementById('startMonth').value,
+            startLeftPt: parseFloat(document.getElementById('startLeftPt').value),
+            startRightPt: parseFloat(document.getElementById('startRightPt').value),
+            directLeft: parseInt(document.getElementById('directLeft').value, 10),
+            directRight: parseInt(document.getElementById('directRight').value, 10),
+            simulationMonths: parseInt(document.getElementById('simulationMonths').value, 10),
+            name: document.getElementById('name').value,
+        },
+        settings: {
+            referralRate: parseFloat(document.getElementById('referralRate').value),
+            referralsPerPerson: parseFloat(document.getElementById('referralsPerPerson').value),
+            pointMultiplier: parseFloat(document.getElementById('pointMultiplier').value),
+            mobilizationRate: parseFloat(document.getElementById('mobilizationRate').value)
+        }
+    };
 }
 
-.container {
-    max-width: 1000px;
-    margin: 0 auto;
-    background: var(--card-background-color);
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px var(--shadow-color);
-}
+/**
+ * 左右どちらかの詳細シミュレーションを実行するエンジン
+ * @param {object} initial - 初期値
+ * @param {object} settings - シミュレーション変数
+ * @param {string} side - 'left' または 'right'
+ * @returns {Array<object>} 月ごとの詳細な計算結果
+ */
+function runDetailedSimulation(initial, settings, side) {
+    let detailedResults = [];
+    let startPt = (side === 'left') ? initial.startLeftPt : initial.startRightPt;
+    let directReferrals = (side === 'left') ? initial.directLeft : initial.directRight;
 
-header h1, section h2 {
-    color: var(--heading-color);
-    text-align: center;
-    border-bottom: 2px solid var(--border-color);
-    padding-bottom: 10px;
-    margin-bottom: 25px;
-}
+    let monthlyState = {
+        startOfMonthPt: 0,
+        prevMonthIncreaseNum: 0,
+        introducers: 0,
+        currentIncreaseNum: 0,
+        increasePt: 0,
+        endOfMonthPt: 0,
+    };
 
-/* 詳細設計: 各コンポーネントのスタイル */
-.grid-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 25px;
-    margin-bottom: 30px;
-}
+    for (let i = 0; i < initial.simulationMonths; i++) {
+        const newState = {};
 
-.settings-card {
-    background: #fdfdff;
-    padding: 25px;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-}
+        // 月初ポイント
+        newState.startOfMonthPt = (i === 0) ? mround(startPt, 0.5) : monthlyState.endOfMonthPt;
+        
+        // 前月増加人数
+        newState.prevMonthIncreaseNum = (i === 0) ? 0 : monthlyState.currentIncreaseNum;
 
-.settings-card legend {
-    font-weight: bold;
-    color: var(--primary-hover-color);
-    padding: 0 10px;
-}
+        if (i === 0) {
+            newState.introducers = 0;
+            newState.currentIncreaseNum = directReferrals;
+        } else {
+            newState.introducers = Math.floor(newState.prevMonthIncreaseNum * (settings.referralRate / 100));
+            newState.currentIncreaseNum = newState.introducers * settings.referralsPerPerson;
+        }
 
-.input-group {
-    margin-bottom: 15px;
-}
-
-.input-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #555;
-}
-
-.input-group input {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
-    transition: border-color 0.3s, box-shadow 0.3s;
-}
-
-.input-group input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
-}
-
-button {
-    display: block;
-    width: 100%;
-    padding: 15px;
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.1s;
-}
-
-button:hover {
-    background-color: var(--primary-hover-color);
-}
-
-button:active {
-    transform: scale(0.98);
-}
-
-.hidden {
-    display: none;
-}
-
-.table-wrapper {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-}
-
-th, td {
-    padding: 12px;
-    text-align: right;
-    border-bottom: 1px solid #ddd;
-    white-space: nowrap;
-}
-
-th {
-    background-color: #f2f2f2;
-    font-weight: bold;
-    position: sticky;
-    top: 0;
-}
-
-tbody tr:hover {
-    background-color: #f9f9f9;
-}
-
-/* レスポンシブ対応 */
-@media (max-width: 768px) {
-    .grid-container {
-        grid-template-columns: 1fr;
+        newState.increasePt = mround(newState.currentIncreaseNum * settings.pointMultiplier, 0.5);
+        newState.endOfMonthPt = mround(newState.startOfMonthPt + newState.increasePt, 0.5);
+        
+        detailedResults.push(newState);
+        monthlyState = newState;
     }
-    body {
-        padding: 10px;
+    return detailedResults;
+}
+
+
+/**
+ * 左右の詳細シミュレーション結果を統合し、最終的な表示用データを作成
+ */
+function generateFinalResults(leftData, rightData, initial) {
+    const finalResults = [];
+    const startDate = new Date(initial.startMonth + '-01T00:00:00');
+
+    for (let i = 0; i < initial.simulationMonths; i++) {
+        const leftMonth = leftData[i];
+        const rightMonth = rightData[i];
+
+        const currentDate = new Date(startDate);
+        currentDate.setMonth(startDate.getMonth() + i);
+        const monthStr = `${currentDate.getFullYear()}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/20`;
+        
+        const mobilizationLeft = Math.floor(leftMonth.endOfMonthPt * (initial.mobilizationRate / 100));
+        const mobilizationRight = Math.floor(rightMonth.endOfMonthPt * (initial.mobilizationRate / 100));
+
+        const commissionLeft = calculateCommission(leftMonth.endOfMonthPt);
+        const commissionRight = calculateCommission(rightMonth.endOfMonthPt);
+
+        finalResults.push({
+            month: monthStr,
+            leftPt: leftMonth.endOfMonthPt,
+            rightPt: rightMonth.endOfMonthPt,
+            totalPt: leftMonth.endOfMonthPt + rightMonth.endOfMonthPt,
+            mobilizationLeft: mobilizationLeft,
+            mobilizationRight: mobilizationRight,
+            totalMobilization: mobilizationLeft + mobilizationRight,
+            totalCommission: commissionLeft + commissionRight,
+        });
     }
-    .container {
-        padding: 15px;
-    }
+    return finalResults;
+}
+
+/**
+ * 最終結果をHTMLテーブルに描画
+ */
+function updateResultsTable(results, name) {
+    const tableBody = document.getElementById('result-table-body');
+    const resultContainer = document.getElementById('results');
+    const resultTitle = document.getElementById('result-title');
+
+    tableBody.innerHTML = ''; // テーブルをクリア
+
+    results.forEach(res => {
+        tableBody.innerHTML += `
+            <tr>
+                <td>${res.month}</td>
+                <td>${res.leftPt.toLocaleString()} pt</td>
+                <td>${res.rightPt.toLocaleString()} pt</td>
+                <td>${res.totalPt.toLocaleString()} pt</td>
+                <td>${res.mobilizationLeft.toLocaleString()} 人</td>
+                <td>${res.mobilizationRight.toLocaleString()} 人</td>
+                <td>${res.totalMobilization.toLocaleString()} 人</td>
+                <td>&yen;${res.totalCommission.toLocaleString()}</td>
+            </tr>
+        `;
+    });
+
+    resultTitle.innerText = name ? `【${name}様】のシミュレーション結果` : 'シミュレーション結果';
+    resultContainer.classList.remove('hidden');
+}
+
+
+// --- ヘルパー関数 ---
+
+function mround(number, multiple) {
+    if (multiple === 0) return number;
+    return Math.round(number / multiple) * multiple;
+}
+
+function calculateCommission(points) {
+    const cyclePoint = 50;
+    const cycleCommission = 10000;
+
+    const fullCycles = Math.floor(points / cyclePoint);
+    const commissionFromCycles = fullCycles * cycleCommission;
+
+    const remainingPoints = points % cyclePoint;
+    
+    let commissionFromRemainder = 0;
+    if (remainingPoints >= 40) commissionFromRemainder = 7500;
+    else if (remainingPoints >= 30) commissionFromRemainder = 6000;
+    else if (remainingPoints >= 20) commissionFromRemainder = 4500;
+    else if (remainingPoints >= 10) commissionFromRemainder = 3000;
+    else if (remainingPoints >= 5) commissionFromRemainder = 1500;
+
+    return commissionFromCycles + commissionFromRemainder;
 }
 
 
