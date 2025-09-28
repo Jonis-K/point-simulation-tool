@@ -145,6 +145,10 @@
                     <fieldset class="settings-card">
                         <legend>▼ 初期値</legend>
                         <div class="input-group">
+                             <label for="name">お名前:</label>
+                             <input type="text" id="name" placeholder="（任意）">
+                        </div>
+                        <div class="input-group">
                             <label for="startMonth">シミュレーション開始年月:</label>
                             <input type="month" id="startMonth" value="2025-09" required>
                         </div>
@@ -220,61 +224,69 @@
 
     <script>
         /**
-         * JavaScript: アプリケーションのロジック
+         * JavaScript: アプリケーションのロジック（決定版）
          */
         document.addEventListener('DOMContentLoaded', () => {
-            
             const form = document.getElementById('simulation-form');
-            
             form.addEventListener('submit', (event) => {
                 event.preventDefault();
                 runApplication();
             });
-
-            // 初期表示時に一度シミュレーションを実行
-            runApplication();
+            runApplication(); // 初期表示時に一度実行
         });
 
         /**
-         * アプリケーションのメインコントローラー
+         * メインコントローラー：アプリケーション全体の処理を管理
          */
         function runApplication() {
             try {
-                const uiInputs = getInputsFromUI();
-                
-                const leftSimulationData = runDetailedSimulation(uiInputs.initial, uiInputs.settings, 'left');
-                const rightSimulationData = runDetailedSimulation(uiInputs.initial, uiInputs.settings, 'right');
+                const inputs = getInputsFromUI();
+                if (!inputs) return; // 入力値が無効な場合は処理を中断
 
-                const finalResults = generateFinalResults(leftSimulationData, rightSimulationData, uiInputs);
-
-                updateResultsTable(finalResults, uiInputs.initial.name);
+                const leftSimulationData = runDetailedSimulation(inputs.initial, inputs.settings, 'left');
+                const rightSimulationData = runDetailedSimulation(inputs.initial, inputs.settings, 'right');
+                const finalResults = generateFinalResults(leftSimulationData, rightSimulationData, inputs);
+                updateResultsTable(finalResults, inputs.initial.name);
             } catch (error) {
-                console.error("シミュレーション中にエラーが発生しました:", error);
-                alert("計算中にエラーが発生しました。入力値を確認してください。");
+                console.error("シミュレーション中に予期せぬエラーが発生しました:", error);
+                alert("計算中にエラーが発生しました。開発者ツールで詳細を確認してください。");
             }
         }
 
         /**
-         * UIから全入力値を取得
+         * UIから全入力値を取得し、不正な値がないか検証する
          */
+        function getNumericValue(id, isFloat = false) {
+            const value = document.getElementById(id).value;
+            if (value === '') return 0; // 空欄は0として扱う
+            const number = isFloat ? parseFloat(value) : parseInt(value, 10);
+            return isNaN(number) ? 0 : number; // 数値でない場合は0として扱う
+        }
+        
         function getInputsFromUI() {
-            return {
+            const inputs = {
                 initial: {
-                    startMonth: document.getElementById('startMonth').value,
-                    startLeftPt: parseFloat(document.getElementById('startLeftPt').value),
-                    startRightPt: parseFloat(document.getElementById('startRightPt').value),
-                    directLeft: parseInt(document.getElementById('directLeft').value, 10),
-                    directRight: parseInt(document.getElementById('directRight').value, 10),
-                    simulationMonths: parseInt(document.getElementById('simulationMonths').value, 10),
                     name: document.getElementById('name').value,
+                    startMonth: document.getElementById('startMonth').value,
+                    startLeftPt: getNumericValue('startLeftPt', true),
+                    startRightPt: getNumericValue('startRightPt', true),
+                    directLeft: getNumericValue('directLeft'),
+                    directRight: getNumericValue('directRight'),
+                    simulationMonths: getNumericValue('simulationMonths'),
                 },
                 settings: {
-                    referralRate: parseFloat(document.getElementById('referralRate').value),
-                    referralsPerPerson: parseFloat(document.getElementById('referralsPerPerson').value),
-                    pointMultiplier: parseFloat(document.getElementById('pointMultiplier').value),
-                    mobilizationRate: parseFloat(document.getElementById('mobilizationRate').value)
+                    referralRate: getNumericValue('referralRate'),
+                    referralsPerPerson: getNumericValue('referralsPerPerson'),
+                    pointMultiplier: getNumericValue('pointMultiplier', true),
+                    mobilizationRate: getNumericValue('mobilizationRate'),
                 }
             };
+            // 開始年月が設定されているか確認
+            if (!inputs.initial.startMonth) {
+                alert("シミュレーション開始年月を正しく入力してください。");
+                return null;
+            }
+            return inputs;
         }
 
         /**
@@ -310,11 +322,11 @@
         /**
          * 左右の詳細シミュレーション結果を統合し、最終的な表示用データを作成
          */
-        function generateFinalResults(leftData, rightData, uiInputs) {
+        function generateFinalResults(leftData, rightData, inputs) {
             const finalResults = [];
-            const startDate = new Date(uiInputs.initial.startMonth + '-01T00:00:00');
+            const startDate = new Date(inputs.initial.startMonth + '-01T00:00:00');
 
-            for (let i = 0; i < uiInputs.initial.simulationMonths; i++) {
+            for (let i = 0; i < inputs.initial.simulationMonths; i++) {
                 const leftMonth = leftData[i];
                 const rightMonth = rightData[i];
 
@@ -322,9 +334,10 @@
                 currentDate.setMonth(startDate.getMonth() + i);
                 const monthStr = `${currentDate.getFullYear()}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/20`;
                 
-                const mobilizationLeft = Math.floor(leftMonth.endOfMonthPt * (uiInputs.settings.mobilizationRate / 100));
-                const mobilizationRight = Math.floor(rightMonth.endOfMonthPt * (uiInputs.settings.mobilizationRate / 100));
+                const mobilizationLeft = Math.floor(leftMonth.endOfMonthPt * (inputs.settings.mobilizationRate / 100));
+                const mobilizationRight = Math.floor(rightMonth.endOfMonthPt * (inputs.settings.mobilizationRate / 100));
 
+                // CSVファイルの「ラウンドコミッション」は左右合計の値なので、ここで合計する
                 const commissionLeft = calculateCommission(leftMonth.endOfMonthPt);
                 const commissionRight = calculateCommission(rightMonth.endOfMonthPt);
                 const totalCommission = commissionLeft + commissionRight;
